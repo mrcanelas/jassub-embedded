@@ -118,6 +118,7 @@ export interface JASSUB extends ClassHandle {
   rawRender(_0: number, _1: number): ASS_Image | null;
   createTrackMem(_0: EmbindString): void;
   addFont(_0: EmbindString, _1: number, _2: number): void;
+  processData(_0: EmbindString): void;
   setDefaultFont(_0: EmbindString): void;
 }
 

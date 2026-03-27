@@ -14,7 +14,7 @@ export class Canvas2DRenderer {
   _scheduledResize?: { width: number, height: number }
 
   resizeCanvas (width: number, height: number) {
-    if (width <= 0 || height <= 0) return
+    if (!width || !height) return
 
     this._scheduledResize = { width, height }
   }
@@ -30,6 +30,8 @@ export class Canvas2DRenderer {
     if (!this.ctx) throw new Error('Could not get 2D context')
   }
 
+  // not supported
+  // https://issues.chromium.org/u/1/issues/40910142
   setColorMatrix (subtitleColorSpace?: 'BT601' | 'BT709' | 'SMPTE240M' | 'FCC', videoColorSpace?: 'BT601' | 'BT709') {}
 
   // this is horribly inefficient, but it's a fallback for systems without a GPU, this is the least of their problems

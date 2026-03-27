@@ -178,6 +178,11 @@ public:
     ass_set_cache_limits(ass_renderer, glyph_limit, bitmap_cache_limit);
   }
 
+  void processData(const std::string &data) {
+    ass_process_data(track, data.data(), data.size());
+  }
+
+
   // BINDING
   ASS_Event *getEvent(int i) {
     return &track->events[i];
@@ -335,6 +340,7 @@ EMSCRIPTEN_BINDINGS(JASSUB) {
     .function("removeStyle", &JASSUB::removeStyle)
     .function("removeAllEvents", &JASSUB::removeAllEvents)
     .function("setMemoryLimits", &JASSUB::setMemoryLimits)
+    .function("processData", &JASSUB::processData)
     .function("rawRender", &JASSUB::rawRender, emscripten::allow_raw_pointers())
     .function("getEvent", &JASSUB::getEvent, emscripten::allow_raw_pointers())
     .function("getStyle", &JASSUB::getStyle, emscripten::allow_raw_pointers())

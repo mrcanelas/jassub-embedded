@@ -112,6 +112,12 @@ export class ASSRenderer {
     return this._ready
   }
 
+  // this passes a string of track data to libass, be it styles, events etc, which it then processes and adds to the track
+  // useful for streaming subtitles
+  processData (events: string) {
+    this._wasm.processData(events)
+  }
+
   createEvent (event: ASSEvent) {
     _applyKeys(event, this._wasm.getEvent(this._wasm.allocEvent())!)
   }
