@@ -22,6 +22,7 @@ export const WEIGHT_MAP = [
 export type WeightValue = typeof WEIGHT_MAP[number]
 
 export const IS_FIREFOX = navigator.userAgent.toLowerCase().includes('firefox')
+export const IS_SAFARI = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
 
 const a = 'BT601'
 const b = 'BT709'
@@ -44,14 +45,14 @@ export async function fetchtext (url: string) {
 
 export const THREAD_COUNT = !IS_FIREFOX && self.crossOriginIsolated ? Math.min(Math.max(1, navigator.hardwareConcurrency - 2), 8) : 1
 
-// @ts-expect-error new experimental API
 export const SUPPORTS_GROWTH = !!WebAssembly.Memory.prototype.toResizableBuffer
 
 // HACK: 3 memory hacks to support here:
 // 1. Chrome WASM Growable memory which can use a reference to the buffer to fix visual artifacts, which happen both with multithreading or without [fastest]
 // 2. Chrome WASM non-growable, but mult-threaded only memory which needs to re-create the HEAPU8 on growth because of race conditions [medium]
 // 3. Firefox non-growable memory which needs a copy of the data into a non-resizable buffer and can't use a reference [fastest single threaded, but only on Firefox, on Chrome this is slowest]
-export const SHOULD_REFERENCE_MEMORY = !IS_FIREFOX && (SUPPORTS_GROWTH || THREAD_COUNT > 1)
+// Additionally safari is inconsistent with this, sometimes it works with sharedarraybuffers, and sometimes it doesn't, probably some version compat diffs?
+export const SHOULD_REFERENCE_MEMORY = !IS_FIREFOX && !IS_SAFARI && (SUPPORTS_GROWTH || THREAD_COUNT > 1)
 
 export const IDENTITY_MATRIX = new Float32Array([
   1, 0, 0,

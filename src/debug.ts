@@ -45,7 +45,7 @@ export class Debug {
     'color: #888'
   )
 
-  _endFrame (meta: VideoFrameCallbackMetadata) {
+  _endFrame (meta: Pick<VideoFrameCallbackMetadata, 'expectedDisplayTime' | 'width' | 'height' | 'mediaTime'>) {
     ++this.presentedFrames
     const fps = this.fps(1)
     const now = performance.now()

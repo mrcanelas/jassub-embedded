@@ -1,5 +1,5 @@
 // fallback for browsers that don't support WebGL2
-import { colorMatrixConversionMap, IDENTITY_MATRIX, IS_FIREFOX, SHOULD_REFERENCE_MEMORY, type ASSImage } from '../util.ts'
+import { colorMatrixConversionMap, IDENTITY_MATRIX, IS_FIREFOX, IS_SAFARI, SHOULD_REFERENCE_MEMORY, type ASSImage } from '../util.ts'
 
 declare const self: DedicatedWorkerGlobalScope &
   typeof globalThis & {
@@ -351,8 +351,8 @@ export class WebGL2Renderer {
         // Upload bitmap data to texture array layer
         this.gl.pixelStorei(this.gl.UNPACK_ROW_LENGTH, img.stride)
 
-        if (IS_FIREFOX) {
-          // HACK 3 [see above for explanation]
+        if (IS_FIREFOX || IS_SAFARI) {
+          // HACK 3 [see util.ts for explanation]
           const sourceView = new Uint8Array(heap.buffer, img.bitmap, img.stride * img.h)
           const bitmapData = new Uint8Array(sourceView)
 

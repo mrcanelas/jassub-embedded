@@ -73,7 +73,7 @@ export default class JASSUB {
   })
 
   _destroyed = false
-  _lastDemandTime!: VideoFrameCallbackMetadata
+  _lastDemandTime!: Pick<VideoFrameCallbackMetadata, 'expectedDisplayTime' | 'width' | 'height' | 'mediaTime'>
   _skipped = false
   _worker
   constructor (opts: JASSUBOptions) {
@@ -279,10 +279,14 @@ export default class JASSUB {
   _handleRVFC (data: VideoFrameCallbackMetadata) {
     if (this._destroyed) return
 
-    this._lastDemandTime = data
-    this._demandRender()
+    this.manualRender(data)
 
     this._video!.requestVideoFrameCallback((now, data) => this._handleRVFC(data))
+  }
+
+  manualRender (data: Pick<VideoFrameCallbackMetadata, 'expectedDisplayTime' | 'width' | 'height' | 'mediaTime'>) {
+    this._lastDemandTime = data
+    return this._demandRender()
   }
 
   async _demandRender (repaint = false) {
