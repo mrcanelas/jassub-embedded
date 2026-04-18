@@ -38,7 +38,7 @@ The
 
 headers are recommended to use this library, as it uses SharedArrayBuffer for multi-threading, but if you can't set them, it will fallback automatically to work in single-threaded mode. Firefox doesn't support threading so they are not required there.
 
-At minimum WASM + TextDecoder + OffscreenCanvas + Web Workers + Proxy + AbortController + Fetch + Promise + getVideoPlaybackQuality/requestVideoFrameCallback are required for JASSUB to work.
+At minimum WASM + TextDecoder + OffscreenCanvas + Web Workers + Proxy + Fetch + Promise + getVideoPlaybackQuality/requestVideoFrameCallback are required for JASSUB to work.
 
 <!-- 
 WASM:              57 11 52    /  51 11 47
@@ -49,12 +49,11 @@ BigInt:            67 15 68
 Web Workers:       4 4 3.5
 Promise:           33 7.1 29   /  4 3.1 2
 Proxy:             49 10 18
-AbortController:   66 12 57    /  4 3.1 2
 Fetch:             42 10.1 39  /  41 10.1 34
 getVPQ/rVFC:       80 8 42     /  28 8 42
 -->
 
-JASSUB supports Chrome/Safari/Firefox 80/17/105, you bring the support down to 67/16.2/68 if you enable some flags/settings in your browser for these features, and polyfill AbortController. For other engines other polyfills might be needed. Babel is also recommended if you need to support older JS engines as JASSUB ships as ES modules with modern syntax.
+JASSUB supports Chrome/Safari/Firefox 80/17/105, you bring the support down to 67/16.2/68 if you enable some flags/settings in your browser for these features. For other engines polyfills might be needed. Babel is also recommended if you need to support older JS engines as JASSUB ships as ES modules with modern syntax.
 
 <!-- See https://github.com/gpuweb/gpuweb/wiki/Implementation-Status for a WebGPU support table, and what flags you might need to enable it in your browser if you want to utilise it instead of WebGL2. -->
 
@@ -108,7 +107,7 @@ const instance = new JASSUB({
 
 await instance.ready
 
-instance.setCurrentTime(15)
+instance.manualRender({ expectedDisplayTime: performance.now(), width: 1920, height: 1080, mediaTime: 10.20 })
 ```
 
 # Docs

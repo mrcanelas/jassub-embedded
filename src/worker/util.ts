@@ -21,8 +21,9 @@ export const WEIGHT_MAP = [
 
 export type WeightValue = typeof WEIGHT_MAP[number]
 
-export const IS_FIREFOX = navigator.userAgent.toLowerCase().includes('firefox')
-export const IS_SAFARI = /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+const UA = navigator.userAgent.toLowerCase()
+export const IS_FIREFOX = UA.includes('firefox')
+export const IS_SAFARI = /applewebkit\/[\d.]+ \(khtml, like gecko\)(?!.*chrome\/)/.test(UA)
 
 const a = 'BT601'
 const b = 'BT709'

@@ -14,7 +14,7 @@ declare const self: typeof globalThis & {
   queryLocalFonts: (opts?: { postscriptNames?: string[] }) => ReturnType<typeof queryRemoteFonts>
 }
 
-const webYCbCrMap = {
+export const webYCbCrMap = {
   rgb: 'RGB',
   bt709: 'BT709',
   // these might not be exactly correct? oops?
@@ -65,8 +65,6 @@ export default class JASSUB {
   _videoHeight = 0
   _videoColorSpace: string | null = null
   _canvas
-  _canvasParent
-  _ctrl = new AbortController()
   _ro = new ResizeObserver(async () => {
     await this.ready
     this.resize()
@@ -87,16 +85,11 @@ export default class JASSUB {
     this._video = opts.video
     this._canvas = opts.canvas ?? document.createElement('canvas')
     if (this._video && !opts.canvas) {
-      this._canvasParent = document.createElement('div')
-      this._canvasParent.className = 'JASSUB'
-      this._canvasParent.style.position = 'relative'
-
-      this._canvas.style.display = 'block'
+      this._canvas.className = 'JASSUB'
       this._canvas.style.position = 'absolute'
       this._canvas.style.pointerEvents = 'none'
-      this._canvasParent.appendChild(this._canvas)
 
-      this._video.insertAdjacentElement('afterend', this._canvasParent)
+      this._video.insertAdjacentElement('afterend', this._canvas)
     }
 
     const ctrl = this._canvas.transferControlToOffscreen()
@@ -141,7 +134,11 @@ export default class JASSUB {
       await this.renderer.ready()
     })()
 
-    if (this._video) this.setVideo(this._video)
+    if (this._video) {
+      this.setVideo(this._video)
+    } else {
+      this._ro.observe(this._canvas)
+    }
     this._worker.postMessage({ name: 'offscreenCanvas', ctrl }, [ctrl])
   }
 
@@ -160,102 +157,88 @@ export default class JASSUB {
     if (!(module instanceof WebAssembly.Module) || !(new WebAssembly.Instance(module) instanceof WebAssembly.Instance)) throw new Error('WASM not supported')
   }
 
-  async resize (forceRepaint = !!this._video?.paused, width = 0, height = 0, top = 0, left = 0) {
-    if ((!width || !height) && this._video) {
-      const videoSize = this._getVideoPosition()
-      let renderSize = null
-      // support anamorphic video
-      if (this._videoWidth) {
-        const widthRatio = this._video.videoWidth / this._videoWidth
-        const heightRatio = this._video.videoHeight / this._videoHeight
-        renderSize = this._computeCanvasSize((videoSize.width || 0) / widthRatio, (videoSize.height || 0) / heightRatio)
-      } else {
-        renderSize = this._computeCanvasSize(videoSize.width || 0, videoSize.height || 0)
-      }
-      width = renderSize.width
-      height = renderSize.height
-      if (this._canvasParent) {
-        top = videoSize.y - (this._canvasParent.getBoundingClientRect().top - this._video.getBoundingClientRect().top)
-        left = videoSize.x
-      }
-      this._canvas.style.width = videoSize.width + 'px'
-      this._canvas.style.height = videoSize.height + 'px'
+  async resize (forceRepaint = !!this._video?.paused, renderWidth = 0, renderHeight = 0) {
+    const videoWidth = this._video?.videoWidth ?? this._videoWidth
+    const videoHeight = this._video?.videoHeight ?? this._videoHeight
+    const videoSize = this._getElementBoundingBox(this._video ?? this._canvas, videoWidth, videoHeight)
+
+    if (!renderWidth || !renderHeight) {
+      // || 1 for divide by zero safety
+      const widthScale = (this._videoWidth / videoWidth) || 1
+      const heightScale = (this._videoHeight / videoHeight) || 1
+
+      const { width, height } = this._computeRenderSize(videoSize.width * widthScale, videoSize.height * heightScale)
+      renderWidth = Math.round(width)
+      renderHeight = Math.round(height)
     }
 
-    if (this._canvasParent) {
-      this._canvas.style.top = top + 'px'
-      this._canvas.style.left = left + 'px'
+    if (this._video) {
+      this._canvas.style.width = Math.round(videoSize.width) + 'px'
+      this._canvas.style.height = Math.round(videoSize.height) + 'px'
+      this._canvas.style.top = videoSize.y + 'px'
+      this._canvas.style.left = videoSize.x + 'px'
     }
 
     await this.renderer._resizeCanvas(
-      width,
-      height,
-      (this._videoWidth || this._video?.videoWidth) ?? width,
-      (this._videoHeight || this._video?.videoHeight) ?? height
+      renderWidth,
+      renderHeight,
+      this._videoWidth || renderWidth,
+      this._videoHeight || renderHeight
     )
 
     if (this._lastDemandTime) await this._demandRender(forceRepaint)
   }
 
-  _getVideoPosition (width = this._video!.videoWidth, height = this._video!.videoHeight) {
-    const videoRatio = width / height
-    const { offsetWidth, offsetHeight } = this._video!
-    const elementRatio = offsetWidth / offsetHeight
-    width = offsetWidth
-    height = offsetHeight
+  _getElementBoundingBox (el: Element, videoWidth: number, videoHeight: number) {
+    const { width, height, x, y } = el.getBoundingClientRect()
+
+    const videoRatio = videoWidth / videoHeight
+    const elementRatio = width / height
+
     if (elementRatio > videoRatio) {
-      width = Math.floor(offsetHeight * videoRatio)
+      videoHeight = height
+      videoWidth = height * videoRatio
     } else {
-      height = Math.floor(offsetWidth / videoRatio)
+      videoHeight = width / videoRatio
+      videoWidth = width
     }
 
-    const x = (offsetWidth - width) / 2
-    const y = (offsetHeight - height) / 2
-
-    return { width, height, x, y }
+    return { x: x + (width - videoWidth) / 2, y: y + (height - videoHeight) / 2, width: videoWidth, height: videoHeight }
   }
 
-  _computeCanvasSize (width = 0, height = 0) {
+  _computeRenderSize (width = 0, height = 0) {
+    if (height <= 0 || width <= 0) return { width: 0, height: 0 }
+
     const scalefactor = this.prescaleFactor <= 0 ? 1.0 : this.prescaleFactor
     const ratio = self.devicePixelRatio || 1
 
-    if (height <= 0 || width <= 0) {
-      width = 0
-      height = 0
-    } else {
-      const sgn = scalefactor < 1 ? -1 : 1
-      let newH = height * ratio
-      if (sgn * newH * scalefactor <= sgn * this.prescaleHeightLimit) {
-        newH *= scalefactor
-      } else if (sgn * newH < sgn * this.prescaleHeightLimit) {
-        newH = this.prescaleHeightLimit
-      }
-
-      if (this.maxRenderHeight > 0 && newH > this.maxRenderHeight) newH = this.maxRenderHeight
-
-      width *= newH / height
-      height = newH
+    const sgn = scalefactor < 1 ? -1 : 1
+    let newH = height * ratio
+    if (sgn * newH * scalefactor <= sgn * this.prescaleHeightLimit) {
+      newH *= scalefactor
+    } else if (sgn * newH < sgn * this.prescaleHeightLimit) {
+      newH = this.prescaleHeightLimit
     }
+
+    if (this.maxRenderHeight > 0 && newH > this.maxRenderHeight) newH = this.maxRenderHeight
+
+    width *= newH / height
+    height = newH
 
     return { width, height }
   }
 
-  async setVideo (video: HTMLVideoElement) {
-    if (video instanceof HTMLVideoElement) {
-      this._removeListeners()
-      this._video = video
-      await this.ready
-      this._video.requestVideoFrameCallback((now, data) => this._handleRVFC(data))
-      // everything else is unreliable for this, loadedmetadata and loadeddata included.
-      if ('VideoFrame' in globalThis) {
-        video.addEventListener('loadedmetadata', () => this._updateColorSpace(), this._ctrl)
-        if (video.readyState > 2) this._updateColorSpace()
-      }
-      if (video.videoWidth > 0) this.resize()
-      this._ro.observe(video)
-    } else {
-      throw new Error('Video element invalid!')
+  async setVideo (target: HTMLVideoElement) {
+    this._removeListeners()
+    this._video = target
+    this._ro.observe(target)
+    if (typeof VideoFrame !== 'undefined') {
+      target.addEventListener('loadedmetadata', this._boundUpdateColorSpace)
+      this._updateColorSpace({ target })
     }
+
+    await this.ready
+    this._video.requestVideoFrameCallback((now, data) => this._handleRVFC(data))
   }
 
   async _getLocalFont (font: string, weight: WeightValue = 'regular') {
@@ -314,12 +297,15 @@ export default class JASSUB {
     if (this._skipped) await this._demandRender()
   }
 
-  async _updateColorSpace () {
-    await this.ready
+  _boundUpdateColorSpace = this._updateColorSpace.bind(this)
+
+  _updateColorSpace ({ target }: { target: EventTarget | null }) {
     this._video!.requestVideoFrameCallback(async () => {
+      if (this._destroyed || this._video !== target) return
       try {
-        const frame = new VideoFrame(this._video!)
+        const frame = new VideoFrame(this._video)
         frame.close()
+        await this.ready
         await this.renderer._setColorSpace(webYCbCrMap[frame.colorSpace.matrix!])
       } catch (e) {
         // sources can be tainted
@@ -329,17 +315,14 @@ export default class JASSUB {
   }
 
   _removeListeners () {
-    if (this._video) {
-      if (this._ro) this._ro.unobserve(this._video)
-      this._ctrl.abort()
-      this._ctrl = new AbortController()
-    }
+    this._ro.disconnect()
+    this._video?.removeEventListener('loadedmetadata', this._boundUpdateColorSpace)
   }
 
   async destroy () {
     if (this._destroyed) return
     this._destroyed = true
-    if (this._video && this._canvasParent) this._video.parentNode?.removeChild(this._canvasParent)
+    this._canvas.remove()
     this._removeListeners()
     await this.renderer?.[releaseProxy]()
     this._worker.terminate()
