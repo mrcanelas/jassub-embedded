@@ -34,19 +34,22 @@ interface opts {
   queryFonts: 'local' | 'localandremote' | false
 }
 
+const constructor = Symbol.for('constructor')
+
 export class ASSRenderer {
-  _offCanvas?: OffscreenCanvas
   _wasm!: JASSUB
   _subtitleColorSpace?: 'BT601' | 'BT709' | 'SMPTE240M' | 'FCC' | null
   _videoColorSpace?: 'BT709' | 'BT601'
   _malloc!: (size: number) => number
-  _gpurender: WebGL2Renderer | WebGL1Renderer | Canvas2DRenderer
+  _gpurender!: WebGL2Renderer | WebGL1Renderer | Canvas2DRenderer
 
   debug = false
 
-  _ready
+  constructor (...args: [data: opts, getFont: (font: string, weight: WeightValue) => Promise<Uint8Array<ArrayBuffer> | undefined>, ctrl: OffscreenCanvas]) {
+    return this[constructor](...args) as unknown as this
+  }
 
-  constructor (data: opts, getFont: (font: string, weight: WeightValue) => Promise<Uint8Array<ArrayBuffer> | undefined>) {
+  async [constructor] (data: opts, getFont: (font: string, weight: WeightValue) => Promise<Uint8Array<ArrayBuffer> | undefined>, ctrl: OffscreenCanvas) {
     // remove case sensitivity
     this._availableFonts = Object.fromEntries(Object.entries(data.availableFonts).map(([k, v]) => [k.trim().toLowerCase(), v]))
     this.debug = data.debug
@@ -57,17 +60,6 @@ export class ASSRenderer {
     // hack, we want custom WASM URLs
     const _fetch = globalThis.fetch
     globalThis.fetch = _ => _fetch(data.wasmUrl)
-
-    // TODO: abslink doesnt support transferables yet
-    const handleMessage = ({ data }: MessageEvent) => {
-      if (data.name === 'offscreenCanvas') {
-        // await this._ready // needed for webGPU
-        this._offCanvas = data.ctrl
-        this._gpurender.setCanvas(this._offCanvas!)
-        removeEventListener('message', handleMessage)
-      }
-    }
-    addEventListener('message', handleMessage)
 
     // const devicePromise = navigator.gpu?.requestAdapter({
     //   powerPreference: 'high-performance'
@@ -83,33 +75,30 @@ export class ASSRenderer {
       this._gpurender = new Canvas2DRenderer()
     }
 
+    this._gpurender.setCanvas(ctrl)
+
+    this._loadedInitialFonts = !data.fonts.length
     // eslint-disable-next-line @typescript-eslint/unbound-method
-    this._ready = (WASM({ __url: data.wasmUrl, __out: (log: string) => this._log(log) }) as Promise<MainModule>).then(async ({ _malloc, JASSUB }) => {
-      this._malloc = _malloc
+    const { _malloc, JASSUB } = await (WASM({ __url: data.wasmUrl, __out: (log: string) => this._log(log) }) as Promise<MainModule>)
+    this._malloc = _malloc
 
-      this._wasm = new JASSUB(data.width, data.height, this._defaultFont)
-      // Firefox seems to have issues with multithreading in workers
-      // a worker inside a worker does not recieve messages properly
-      this._wasm.setThreads(THREAD_COUNT)
+    this._wasm = new JASSUB(data.width, data.height, this._defaultFont)
+    // Firefox seems to have issues with multithreading in workers
+    // a worker inside a worker does not recieve messages properly
+    this._wasm.setThreads(THREAD_COUNT)
 
-      this._loadInitialFonts(data.fonts)
+    if (!this._loadedInitialFonts) await this._loadInitialFonts(data.fonts)
 
-      this._wasm.createTrackMem(data.subContent ?? await fetchtext(data.subUrl!))
+    this._wasm.createTrackMem(data.subContent ?? await fetchtext(data.subUrl!))
 
-      this._subtitleColorSpace = LIBASS_YCBCR_MAP[this._wasm.trackColorSpace]
+    this._subtitleColorSpace = LIBASS_YCBCR_MAP[this._wasm.trackColorSpace]
 
-      if (data.libassMemoryLimit > 0 || data.libassGlyphLimit > 0) {
-        this._wasm.setMemoryLimits(data.libassGlyphLimit || 0, data.libassMemoryLimit || 0)
-      }
-      // const device = await devicePromise
-      // this._gpurender = device ? new WebGPURenderer(device) : new WebGL2Renderer()
-      // if (this._offCanvas) this._gpurender.setCanvas(this._offCanvas, this._offCanvas.width, this._offCanvas.height)
-      this._checkColorSpace()
-    })
-  }
+    if (data.libassMemoryLimit > 0 || data.libassGlyphLimit > 0) {
+      this._wasm.setMemoryLimits(data.libassGlyphLimit || 0, data.libassMemoryLimit || 0)
+    }
+    this._checkColorSpace()
 
-  ready () {
-    return this._ready
+    return this
   }
 
   // this passes a string of track data to libass, be it styles, events etc, which it then processes and adds to the track
@@ -191,7 +180,7 @@ export class ASSRenderer {
     this._gpurender.setColorMatrix(this._subtitleColorSpace, this._videoColorSpace)
   }
 
-  _defaultFont
+  _defaultFont!: string
   setDefaultFont (fontName: string) {
     this._defaultFont = fontName.trim().toLowerCase()
     this._wasm.setDefaultFont(this._defaultFont)
@@ -206,7 +195,7 @@ export class ASSRenderer {
   }
 
   async addFonts (fontOrURLs: Array<Uint8Array | string>) {
-    if (!fontOrURLs.length) return
+    if (!fontOrURLs.length) return false
     const strings: string[] = []
     const uint8s: Uint8Array[] = []
 
@@ -221,7 +210,7 @@ export class ASSRenderer {
 
     // this isn't batched like uint8s because software like jellyfin exists, which loads 50+ fonts over the network which takes time...
     // is connection exhaustion a concern here?
-    return await Promise.allSettled(strings.map(url => this._asyncWrite(url)))
+    return !!await Promise.allSettled(strings.map(url => this._asyncWrite(url)))
   }
 
   // we don't want to run _findAvailableFont before initial fonts are loaded
@@ -230,9 +219,10 @@ export class ASSRenderer {
   async _loadInitialFonts (fontOrURLs: Array<Uint8Array | string>) {
     await this.addFonts(fontOrURLs)
     this._loadedInitialFonts = true
+    this._wasm.reloadFonts()
   }
 
-  _getFont
+  _getFont!: (font: string, weight: WeightValue) => Promise<Uint8Array<ArrayBuffer> | undefined>
   _availableFonts: Record<string, Uint8Array | string> = {}
   _checkedFonts = new Set<string>()
   async _findAvailableFont (fontName: string, weight?: WeightValue) {
@@ -265,7 +255,7 @@ export class ASSRenderer {
     }
   }
 
-  queryFonts
+  queryFonts!: 'local' | 'localandremote' | false
   async _queryLocalFont (fontName: string, weight: WeightValue) {
     if (!this.queryFonts) return
     return await this._getFont(fontName, weight)
@@ -302,7 +292,6 @@ export class ASSRenderer {
   }
 
   async [finalizer] () {
-    await this._ready
     this._wasm.quitLibrary()
     this._gpurender.destroy()
     // @ts-expect-error force GC
@@ -313,8 +302,6 @@ export class ASSRenderer {
   }
 
   _draw (time: number, repaint = false) {
-    if (!this._offCanvas || !this._gpurender) return
-
     const result = this._wasm.rawRender(time, Number(repaint))!
     if (this._wasm.changed === 0 && !repaint) return
 

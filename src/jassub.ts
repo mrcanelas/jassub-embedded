@@ -1,6 +1,6 @@
 import 'rvfc-polyfill'
 
-import { proxy, releaseProxy } from 'abslink'
+import { proxy, releaseProxy, transfer } from 'abslink'
 import { wrap } from 'abslink/w3c'
 
 import { Debug } from './debug.ts'
@@ -115,8 +115,8 @@ export default class JASSUB {
       availableFonts['liberation sans'] = new URL('./default.woff2', import.meta.url).href
     }
 
-    this.ready = (async () => {
-      this.renderer = await new Renderer({
+    this.ready = new Renderer(
+      {
         wasmUrl: JASSUB._supportsSIMD ? modern : normal,
         width: ctrl.width,
         height: ctrl.height,
@@ -129,17 +129,18 @@ export default class JASSUB {
         libassMemoryLimit: opts.libassMemoryLimit ?? 0,
         libassGlyphLimit: opts.libassGlyphLimit ?? 0,
         queryFonts: opts.queryFonts ?? 'local'
-      }, proxy(font => this._getLocalFont(font))) as unknown as Remote<ASSRenderer>
-
-      await this.renderer.ready()
-    })()
+      },
+      proxy(font => this._getLocalFont(font)),
+      transfer(ctrl, [ctrl])
+    ).then((renderer: unknown) => {
+      this.renderer = renderer as Remote<ASSRenderer>
+    })
 
     if (this._video) {
       this.setVideo(this._video)
     } else {
       this._ro.observe(this._canvas)
     }
-    this._worker.postMessage({ name: 'offscreenCanvas', ctrl }, [ctrl])
   }
 
   static _supportsSIMD?: boolean
@@ -189,21 +190,21 @@ export default class JASSUB {
     if (this._lastDemandTime) await this._demandRender(forceRepaint)
   }
 
-  _getElementBoundingBox (el: Element, videoWidth: number, videoHeight: number) {
-    const { width, height, x, y } = el.getBoundingClientRect()
+  _getElementBoundingBox (el: HTMLElement, videoWidth: number, videoHeight: number) {
+    const { clientWidth, clientHeight, offsetLeft, offsetTop } = el
 
     const videoRatio = videoWidth / videoHeight
-    const elementRatio = width / height
+    const elementRatio = clientWidth / clientHeight
 
     if (elementRatio > videoRatio) {
-      videoHeight = height
-      videoWidth = height * videoRatio
+      videoHeight = clientHeight
+      videoWidth = clientHeight * videoRatio
     } else {
-      videoHeight = width / videoRatio
-      videoWidth = width
+      videoHeight = clientWidth / videoRatio
+      videoWidth = clientWidth
     }
 
-    return { x: x + (width - videoWidth) / 2, y: y + (height - videoHeight) / 2, width: videoWidth, height: videoHeight }
+    return { x: offsetLeft + (clientWidth - videoWidth) / 2, y: offsetTop + (clientHeight - videoHeight) / 2, width: videoWidth, height: videoHeight }
   }
 
   _computeRenderSize (width = 0, height = 0) {
@@ -324,6 +325,7 @@ export default class JASSUB {
     this._destroyed = true
     this._canvas.remove()
     this._removeListeners()
+    await this.ready
     await this.renderer?.[releaseProxy]()
     this._worker.terminate()
   }

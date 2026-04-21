@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       abslink:
-        specifier: ^1.1.6
-        version: 1.1.6
+        specifier: ^1.2.2
+        version: 1.2.2
       lfa-ponyfill:
         specifier: ^1.1.0
         version: 1.1.0
@@ -474,8 +474,8 @@ packages:
   '@webgpu/types@0.1.69':
     resolution: {integrity: sha512-RPmm6kgRbI8e98zSD3RVACvnuktIja5+yLgDAkTmxLr90BEwdTXRQWNLF3ETTTyH/8mKhznZuN5AveXYFEsMGQ==}
 
-  abslink@1.1.6:
-    resolution: {integrity: sha512-8fQgnUoVSgc1IhOrYzdDY+wTDPktbuYjds2LKf9kWYWKwDnHgXU168gdV3sPei7vevFf5m2fPZ6IQSKZkSjHVg==}
+  abslink@1.2.2:
+    resolution: {integrity: sha512-HCOItvzORPjMzddCmEpbH8+W1VM3yjH+CR7DLtxlxFKX/jz5twJbm7KLfblO7eKLnXINLah8Hk2ZAJqxXeSkOg==}
 
   acorn-jsx@5.3.2:
     resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}
@@ -1866,7 +1866,7 @@ snapshots:
 
   '@webgpu/types@0.1.69': {}
 
-  abslink@1.1.6: {}
+  abslink@1.2.2: {}
 
   acorn-jsx@5.3.2(acorn@8.15.0):
     dependencies:
