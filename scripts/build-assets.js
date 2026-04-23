@@ -2,17 +2,17 @@ const fs = require('fs');
 const path = require('path');
 
 const distPath = path.join(__dirname, '../dist');
-const outputPath = path.join(distPath, 'jassubAssets.cjs');
+const outputPath = path.join(distPath, 'jassubAssets.js');
 
-const workerPath = path.join(__dirname, '../src/wasm/jassub-worker.js');
+const workerPath = path.join(__dirname, '../dist/worker/jassubWorkerBundle.js');
 const wasmPath = path.join(__dirname, '../src/wasm/jassub-worker.wasm');
 const wasmModernPath = path.join(__dirname, '../src/wasm/jassub-worker-modern.wasm');
 const fontPath = path.join(__dirname, '../src/default.woff2');
-const fontBinary = fs.readFileSync(fontPath).toString('base64');
 
 const workerSource = fs.readFileSync(workerPath, 'utf8');
 const wasmBinary = fs.readFileSync(wasmPath).toString('base64');
 const wasmModernBinary = fs.readFileSync(wasmModernPath).toString('base64');
+const fontBinary = fs.readFileSync(fontPath).toString('base64');
 
 if (!fs.existsSync(distPath)) {
     fs.mkdirSync(distPath, { recursive: true });
@@ -24,7 +24,7 @@ module.exports = {
     workerSource: ${JSON.stringify(workerSource)},
     wasmBinary: "${wasmBinary}",
     wasmModernBinary: "${wasmModernBinary}",
-    defaultFont: "data:font/woff2;base64,${fontBinary}"
+    defaultFont: "${fontBinary}"
 };`;
 
 fs.writeFileSync(outputPath, template);
