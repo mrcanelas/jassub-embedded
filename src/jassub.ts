@@ -10,9 +10,6 @@ import type { ASSRenderer } from './worker/worker'
 import type { Remote } from 'abslink'
 import type { queryRemoteFonts } from 'lfa-ponyfill'
 
-// @ts-ignore
-import jassubAssets from '../dist/jassubAssets.cjs'
-
 declare const self: typeof globalThis & {
   queryLocalFonts: (opts?: { postscriptNames?: string[] }) => ReturnType<typeof queryRemoteFonts>
 }
@@ -103,34 +100,19 @@ export default class JASSUB {
     this.prescaleHeightLimit = opts.prescaleHeightLimit ?? 1080
     this.maxRenderHeight = opts.maxRenderHeight ?? 0 // 0 - no limit.
 
-    // Create a Blob for the Worker using the embedded source string
-    const workerBlob = new Blob([jassubAssets.workerSource], { type: 'application/javascript' })
-    const workerUrl = URL.createObjectURL(workerBlob)
-
-    // Convert Base64 to Blob URL for WASM
-    const wasmBlob = new Blob([Uint8Array.from(atob(jassubAssets.wasmBinary), c => c.charCodeAt(0))], { type: 'application/wasm' })
-    const wasmUrl = URL.createObjectURL(wasmBlob)
-
-    // Convert Base64 to Blob URL for WASM Modern
-    const wasmModernBlob = new Blob([Uint8Array.from(atob(jassubAssets.wasmModernBinary), c => c.charCodeAt(0))], { type: 'application/wasm' })
-    const wasmModernUrl = URL.createObjectURL(wasmModernBlob)
-
-    // Prioritize custom workerUrl, otherwise use the embedded Blob URL
+    // yes this is awful, but bundlers check for new Worker(new URL()) patterns, so can't use new Worker(workerUrl ?? new URL(...)) ... bruh
     this._worker = opts.workerUrl
-      ? new Worker(opts.workerUrl, { name: 'jassub-worker' })
-      : new Worker(workerUrl, { name: 'jassub-worker' })
+      ? new Worker(opts.workerUrl, { name: 'jassub-worker', type: 'module' })
+      : new Worker(new URL('./worker/worker.js', import.meta.url), { name: 'jassub-worker', type: 'module' })
 
     const Renderer = wrap<typeof ASSRenderer>(this._worker)
 
-    // WASM binaries are injected via jassubAssets (Base64) if no URL is provided
-    const modern = opts.modernWasmUrl ?? wasmModernUrl
-    const normal = opts.wasmUrl ?? wasmUrl
+    const modern = opts.modernWasmUrl ?? new URL('./wasm/jassub-worker-modern.wasm', import.meta.url).href
+    const normal = opts.wasmUrl ?? new URL('./wasm/jassub-worker.wasm', import.meta.url).href
 
-    const availableFonts: Record<string, Uint8Array | string> = opts.availableFonts || {}
-    
-    // Use the embedded font if no default is provided
+    const availableFonts = opts.availableFonts ?? {}
     if (!availableFonts['liberation sans'] && !opts.defaultFont) {
-      availableFonts['liberation sans'] = jassubAssets.defaultFont
+      availableFonts['liberation sans'] = new URL('./default.woff2', import.meta.url).href
     }
 
     this.ready = new Renderer(
