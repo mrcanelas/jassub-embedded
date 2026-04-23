@@ -1,19 +1,24 @@
 {
   "name": "@mrcanelas/jassub-embedded",
-  "version": "2.5.1",
+  "version": "2.5.2",
   "description": "The Fastest JavaScript SSA/ASS Subtitle Renderer For Browsers",
-  "main": "dist/jassubBundle.cjs",
+  "main": "dist/jassubBundle.js",
   "publishConfig": {
     "access": "public"
   },
   "files": [
-    "dist/",
+    "dist/jassubBundle.cjs",
+    "dist/jassubAssets.cjs",
     "README.md",
+    "LICENSE",
     "package.json"
   ],
   "scripts": {
-    "build:cjs": "esbuild src/jassub.ts --bundle --format=cjs --outfile=dist/jassubBundle.cjs --external:fs --external:path",
-    "build:embedded": "node scripts/build-assets.cjs && npm run build:cjs",
+    "build": "tsc --noCheck",
+    "build:worker": "esbuild dist/worker/worker.js --bundle --platform=browser --format=esm --target=es2017 --supported:import-meta=true --outfile=dist/worker/jassubWorkerBundle.js",
+    "build:assets": "node scripts/build-assets.js",
+    "build:bundle": "esbuild dist/jassub.js --bundle --platform=browser --format=cjs --target=es2020 --outfile=dist/jassubBundle.js --external:fs --external:path",
+    "build:embedded": "npm run build && npm run build:worker && npm run build:assets && npm run build:bundle",
     "prepare": "npm run build:embedded"
   },
   "repository": {
