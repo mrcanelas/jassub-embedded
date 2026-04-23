@@ -1,14 +1,14 @@
 {
   "name": "@mrcanelas/jassub-embedded",
-  "version": "2.5.2",
+  "version": "2.5.3",
   "description": "The Fastest JavaScript SSA/ASS Subtitle Renderer For Browsers",
   "main": "dist/jassubBundle.js",
   "publishConfig": {
     "access": "public"
   },
   "files": [
-    "dist/jassubBundle.cjs",
-    "dist/jassubAssets.cjs",
+    "dist/jassubBundle.js",
+    "dist/jassubAssets.js",
     "README.md",
     "LICENSE",
     "package.json"
