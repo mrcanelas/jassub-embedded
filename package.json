@@ -21,7 +21,9 @@
     "build": "tsc --noCheck",
     "dev": "vite --host",
     "docker:build": "docker build -t thaunknown/jassub-build .",
-    "docker:run": "docker run -it --rm -v ${PWD}:/code --name thaunknown_jassub-build thaunknown/jassub-build:latest"
+    "docker:run": "docker run -it --rm -v ${PWD}:/code --name thaunknown_jassub-build thaunknown/jassub-build:latest",
+    "build:cjs": "esbuild src/jassub.ts --bundle --format=cjs --outfile=vendor/jassubBundle.cjs --external:fs --external:path",
+    "build:embedded": "node scripts/build-assets.cjs && npm run build:cjs"
   },
   "repository": {
     "type": "git",
@@ -53,6 +55,7 @@
   },
   "devDependencies": {
     "@webgpu/types": "^0.1.69",
+    "esbuild": "^0.28.0",
     "eslint-config-standard-universal": "^1.0.9",
     "typescript": "^5.2.2",
     "vite": "^7.3.1"

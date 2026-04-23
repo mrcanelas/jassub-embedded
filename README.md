@@ -10,6 +10,16 @@ JASSUB is a JS wrapper for <a href="https://github.com/libass/libass">libass</a>
   <a href="https://jassub.pages.dev" target="_blank">Demo</a>
 </h1>
 
+## Why jassub-embedded?
+
+Modern JASSUB versions moved strictly to ES Modules (ESM) and require external management of Worker and WASM files. This often leads to `ERR_REQUIRE_ESM` or path resolution issues in legacy environments, Electron, or specific TV OS wrappers (like WebOS).
+
+This fork:
+
+- **Exports in CommonJS (CJS):** Works perfectly with `require()`.
+- **Zero Asset Configuration:** The Worker and WASM are embedded directly into the JS bundle as  strings/base64. No more 404s for `.wasm` files.
+- **Drop-in Replacement:** Keeps the same API as the original JASSUB.
+
 ## Features
 
 * Supports all SSA/ASS features (everything libass supports)
