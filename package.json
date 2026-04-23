@@ -2,7 +2,7 @@
   "name": "jassub",
   "version": "2.5.1",
   "description": "The Fastest JavaScript SSA/ASS Subtitle Renderer For Browsers",
-  "main": "dist/jassub.js",
+  "main": "dist/jassubBundle.cjs",
   "type": "module",
   "files": [
     "dist/wasm/*",
@@ -22,8 +22,9 @@
     "dev": "vite --host",
     "docker:build": "docker build -t thaunknown/jassub-build .",
     "docker:run": "docker run -it --rm -v ${PWD}:/code --name thaunknown_jassub-build thaunknown/jassub-build:latest",
-    "build:cjs": "esbuild src/jassub.ts --bundle --format=cjs --outfile=vendor/jassubBundle.cjs --external:fs --external:path",
-    "build:embedded": "node scripts/build-assets.cjs && npm run build:cjs"
+    "build:cjs": "esbuild src/jassub.ts --bundle --format=cjs --outfile=dist/jassubBundle.cjs --external:fs --external:path",
+    "build:embedded": "node scripts/build-assets.cjs && npm run build:cjs",
+    "prepare": "npm run build:embedded"
   },
   "repository": {
     "type": "git",

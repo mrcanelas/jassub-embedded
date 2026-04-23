@@ -11,7 +11,7 @@ import type { Remote } from 'abslink'
 import type { queryRemoteFonts } from 'lfa-ponyfill'
 
 // @ts-ignore
-import jassubAssets from '../vendor/jassubAssets.cjs'
+import jassubAssets from '../dist/jassubAssets.cjs'
 
 declare const self: typeof globalThis & {
   queryLocalFonts: (opts?: { postscriptNames?: string[] }) => ReturnType<typeof queryRemoteFonts>

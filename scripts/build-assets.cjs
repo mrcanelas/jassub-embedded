@@ -21,4 +21,4 @@ module.exports = {
     defaultFont: "data:font/woff2;base64,${fontBinary}"
 };`;
 
-fs.writeFileSync(path.join(__dirname, '../vendor/jassubAssets.cjs'), template);
+fs.writeFileSync(path.join(__dirname, '../dist/jassubAssets.cjs'), template);
