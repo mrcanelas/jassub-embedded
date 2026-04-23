@@ -3,7 +3,6 @@
   "version": "2.5.1",
   "description": "The Fastest JavaScript SSA/ASS Subtitle Renderer For Browsers",
   "main": "dist/jassubBundle.cjs",
-  "type": "module",
   "publishConfig": {
     "access": "public"
   },
